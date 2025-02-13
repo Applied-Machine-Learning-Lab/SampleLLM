@@ -91,7 +91,6 @@ def main(model_name,
         interpret_model = nn.Sequential()
         for layer in model.named_children():
             print("Name: ", layer[0])
-            # print(layer[1])
             if isinstance(layer[1], FeaturesEmbedding):
                 embedding_model.add_module(layer[0], layer[1])
             else:
@@ -118,12 +117,9 @@ def main(model_name,
         criterion = nn.CrossEntropyLoss()
     explainer = PathExplainerTorch(interpret_model)
     baseline = torch.zeros_like(train_tensor)[:2]
-    # print(train_tensor.shape)
-    # train_tensor = interpret_model(train_tensor)
-    # print(train_tensor.shape)
     train_tensor.require_grad = True
 
-    # 第一种
+
     interactions = explainer.interactions(input_tensor=train_tensor,
                                           baseline=baseline,
                                           num_samples=36,
@@ -137,25 +133,20 @@ def main(model_name,
     else:
         interactions_np = torch.mean(interactions.detach(), dim=0).cpu().numpy()
 
-    # no matter negative or positive
+
     interactions_np = abs(interactions_np)
 
-    # gjt 判断是否特征交互正确
-    # center is too big
+
+
     for i in range(interactions_np.shape[0]):
         interactions_np[i,i]=0
 
     # interactions_np = standardization(interactions_np.reshape(-1)).reshape(interactions_np.shape[0], interactions_np.shape[1])
 
     fea_fields = train_set.fea_fields
-    # print(interactions_np)
     clusters, cluster_names = cluster_registration(interactions_np, 0.5, fea_fields)
     print("Clusters: ", clusters)
 
-
-    # plt.xticks(np.arange(len(fea_fields)), labels=fea_fields,
-    #            rotation=45, rotation_mode="anchor", ha="right")
-    # plt.yticks(np.arange(len(fea_fields)), labels=fea_fields)
 
     plt.imshow(interactions_np)
     ticks = [i for i in range(0, len(interactions_np), 2)]
@@ -173,30 +164,22 @@ def main(model_name,
     sou_pd = source_set.to_pandas()
     tar_p = {}
     sou_p = {}
-    # 组频次统计
     for idx, clu in enumerate(tqdm(cluster_names)):
         tar_p[idx] = train_pd.value_counts(subset=clu) / len(train_pd)
         sou_p[idx] = sou_pd.value_counts(subset=clu) / len(sou_pd)
 
     importance_score = np.ones(len(sou_pd))
     for idx, clu in enumerate(cluster_names):
-        #source data for clu cluster
         data = list(sou_pd[clu].values)
-        # source prob for clu cluster
         s_p = sou_p[idx].loc[data]
         t_p = []
-        # for each cluster sample
         for dat in tqdm(data):
-            # if this cluster sample exist in target dataset
             ext_dat = tar_p[idx].index.isin([tuple(dat)])
             ext_dat1 = ext_dat.any()
-            # if yes, use tar_p for prob
             if ext_dat1:
                 t_p.append(tar_p[idx].loc[tuple(dat)])
-            # if not exist, prob is none_prob
             else:
                 t_p.append(none_prob)
-        # update importance score with this cluster
         importance_score = importance_score*np.array(t_p)/s_p.values
 
 
@@ -235,7 +218,6 @@ def main(model_name,
             field = field.float()
         else:
             field = field.long()
-        # 想法: 每次每个label 均生成一个样本，根据xy取概率
         sample_indices = torch.arange(0, label.size(0)).to(device)
         indices_tensor = torch.cat([
             sample_indices.unsqueeze(1),
@@ -247,16 +229,10 @@ def main(model_name,
             sou_pred = torch.nn.functional.softmax(gather_nd(new_model(field), indices_tensor).squeeze(), dim=-1)
         tar_all.extend(tar_pred.detach().cpu().tolist())
         sou_all.extend(sou_pred.detach().cpu().tolist())
-    # gjt 改这里
     tar_xy = np.array(tar_all)
     sou_xy = np.array(sou_all)
     importance_score = importance_score * tar_xy / sou_xy
-    # norm the score
     importance_score = importance_score / importance_score.sum()
-    # importance_score = 1-importance_score
-    # importance_score = importance_score / importance_score.sum()
-    # print(importance_score)
-    # filter out samples with prob 0
     useful = np.where(importance_score > 0.0, 1, 0)
     print("Useful samples: ", useful.sum())
 
@@ -278,9 +254,6 @@ def main(model_name,
     tsne(np.concatenate((train_set.field[train_idx], train_set.label[train_idx].reshape((-1, 1))), axis=1),
          np.concatenate((source_set1.field[source1_idx], source_set1.label[source1_idx].reshape((-1, 1))), axis=1))
 
-    # tsne(np.concatenate((train_set.field[train_idx], train_set.label[train_idx].reshape((-1, 1))), axis=1),
-    #      np.concatenate((source_set1.field[source1_idx], source_set1.label[source1_idx].reshape((-1, 1))), axis=1),
-    #      np.concatenate((source_set2.field[source2_idx], source_set2.label[source2_idx].reshape((-1, 1))), axis=1))
 
     real_data = pd.read_csv("{}/{}/{}.csv".format(data_dir, dataset_name, dataset_name))
     sample_data = source_set1.to_pandas()
@@ -290,15 +263,7 @@ def main(model_name,
     synthetic_data.to_csv("{}/{}/{}_{}_sampling.csv".format(data_dir, dataset_name, dataset_name, source_name), index=False)
     metadata = SingleTableMetadata()
     metadata.detect_from_dataframe(real_data)
-    # quality_report = evaluate_quality(
-    #     real_data,
-    #     sample_data,
-    #     metadata)
-    #
-    # quality_report = evaluate_quality(
-    #     real_data,
-    #     synthetic_data,
-    #     metadata)
+
 
 
 
