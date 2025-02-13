@@ -31,7 +31,6 @@ def cluster_sample(array):
 
 class LLMmodel():
     def __init__(self):
-        # covtype
         self.prompts = prompt_dict[dataset_name]
 
         self.sampling_params = SamplingParams(temperature=0.1, top_p=0.9, max_tokens=3500)
@@ -42,9 +41,6 @@ class LLMmodel():
         prompts = self.prompts[0] + prompt + self.prompts[1]
         outputs = self.model.generate(prompts, self.sampling_params)
         generation = outputs[0].outputs[0].text.strip()
-        # baichuan
-        # print("\n\n===========\nPrompt: {}\n---------------------\nGeneration: {}\n===========\n\n".format(prompt,
-        #                                                                                                    generation))
         return generation
 
 model = LLMmodel()
@@ -64,10 +60,6 @@ if apply_encoder:
             for idx, row in data.iterrows():
                 for ind in range(len(cols)):
                     col = cols[ind]
-                    # print(col)
-                    # print(encoders[col])
-                    # print(type(row[col]))
-                    # print(encoders[col].inverse_transform([row[col]]))
                     if ind == (len(cols)-1):
                         prompt_text += "{} is {}, ".format(col, row[col])
                     else:
@@ -76,12 +68,9 @@ if apply_encoder:
                 prompt_text += "\n"
                 prompt_id += "\n"
         prompt = prompt_text + "\n\nHere are the corresponding id expressions of the above samples:\n\n" + prompt_id
-        # print(prompt)
         generation = model.predict(prompt_id)
-        # print("Generation: ", generation)
         with open("./data/{}/llm_origin/".format(dataset_name) + str(i) + ".txt", "w") as fp:
             fp.write(generation)
-        # break
 else:
     for i in tqdm(range(1, len_data, 3)):
         prompt = ""
@@ -91,9 +80,6 @@ else:
                 for col in cols:
                     prompt += "{} is {}, ".format(col, row[col])
                 prompt += "\n"
-        # print(prompt)
         generation = model.predict(prompt)
-        # print("Generation: ", generation)
         with open("./data/{}/llm_origin/".format(dataset_name) + str(i) + ".txt", "w") as fp:
             fp.write(generation)
-        # break
